@@ -172,7 +172,7 @@ export default function Prodetalhe() {
       <Header user={idUsr.toString()} nomUser={nomUsuario.toString()} sysTitle={titulo} />
       <View style={styles.box}>
         <View>
-          <Image source={{ uri: `https://thumbs2.imgbox.com/d9/79/uhgnjIks_t.jpg` }} resizeMode="contain" width={100} height={100} style={styles.imgLogo} />
+          <Image source={{ uri: `https://thumbs2.imgbox.com/${produto.proAvatar}` }} resizeMode="contain" width={100} height={100} style={styles.imgLogo} />
         </View>
         <View style={styles.boxDescricao}>
           <Text style={styles.txtDescricao}>{produto.proDescricao}</Text>
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   txtDescricao: {
     fontSize: 18,
     fontWeight: '500',
-    textAlign: 'center', // Adicionado para centralizar o texto
+    textAlign: 'center', 
   },
   boxReferencia: {
     width: '90%',
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   txtReferencia: {
     fontSize: 18,
     fontWeight: '500',
-    textAlign: 'center', // Adicionado para centralizar o texto
+    textAlign: 'center', 
   },
   imgLogo: {
     width: 300,
@@ -307,14 +307,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     marginLeft: 5,
-    alignItems: 'center', // Centraliza conteúdo dentro do botão
+    alignItems: 'center', 
   },
   boxImg: {
     width: '100%',
     height: 60,
     alignContent: 'center',
     alignItems: 'center',
-    justifyContent: 'center', // Centraliza o ícone verticalmente
+    justifyContent: 'center', 
   },
   imgPeq: {
     alignContent: 'center',
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20, // Adicionado para espaçamento
+    marginBottom: 20, 
   },
   txtTorneira: {
     fontSize: 24,
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     color: '#166534',
-    marginLeft: 5, // Aumentado para melhor espaçamento
+    marginLeft: 5, 
   },
   lnhTorneira: {
     flexDirection: 'row',

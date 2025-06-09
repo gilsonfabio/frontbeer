@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import {Pressable, StatusBar, View, Text, Image, FlatList, StyleSheet} from "react-native"
-import { AntDesign } from '@expo/vector-icons';
-import { useNavigation, useRouter, useLocalSearchParams, Link } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import React, { useEffect, useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
-import {api} from '@/server/api';
 import LisProdutos from '@/components/lisProdutos';
+import { api } from '@/server/api';
 
 type produtoProps = {
     idProd: string; 

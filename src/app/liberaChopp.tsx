@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 const LiberaChopp = () => {
   const [data, setData] = useState<string | null>(null);
@@ -16,7 +16,7 @@ const LiberaChopp = () => {
         }
     
         const text = await response.text();
-        console.log("Resposta da API:", text); // Debug
+        console.log("Resposta da API:", text); 
         setData(text || "Resposta vazia");
       } catch (error: any) {
         console.error("Erro ao buscar dados:", error);

@@ -87,7 +87,6 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      {/* Parte de cima: Câmera */}
       <View style={styles.cameraContainer}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
@@ -97,7 +96,6 @@ export default function Login() {
         />
       </View>
 
-      {/* Parte de baixo: Slider + Instruções */}
       <View style={styles.bottomContainer}>
         <Text style={styles.instructionText}>Aponte o QR Code para a câmera</Text>
 
@@ -126,7 +124,6 @@ export default function Login() {
         </View>
       </View>
 
-      {/* Loading Overlay */}
       {loading && (
         <View style={styles.overlay}>
           <ActivityIndicator size="large" color="#fff" />
