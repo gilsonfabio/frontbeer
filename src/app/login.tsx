@@ -1,8 +1,11 @@
 import { api } from '@/server/api';
+import { BlurView } from 'expo-blur';
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 
 const { width, height } = Dimensions.get('window');
@@ -11,23 +14,23 @@ const bottomHeight = height * 0.5;
 const horizontalMargin = 8;
 
 const slideWidth = width - horizontalMargin * 2;
-const slideHeight = bottomHeight * 0.8; 
-const imageHeight = slideHeight * 0.7;  
+const slideHeight = bottomHeight * 0.8;
+const imageHeight = slideHeight * 0.6;
 
 const slides = [
   {
-    title: 'Leia o QR Code',
-    description: 'Aponte a câmera para o QR Code do cliente.',
+    title: 'Receita simples p/ o estresse',
+    description: 'Chopp gelado, um ou mais amigos e boas risadas!',
     image: require('@/assets/images/slide1.png'),
   },
   {
-    title: 'Autenticação Rápida',
-    description: 'Você será redirecionado automaticamente.',
+    title: 'Felicidade tem gosto de cerveja!',
+    description: 'Tristeza tem cheiro de academia! Qual você quer?',
     image: require('@/assets/images/slide2.png'),
   },
   {
-    title: 'Segurança Garantida',
-    description: 'Todos os dados são criptografados.',
+    title: 'Cerveja gelada, boi na invernada e ',
+    description: 'mulher pelada... Quem conhece esses versos?',
     image: require('@/assets/images/slide3.png'),
   },
 ];
@@ -39,11 +42,47 @@ export default function Login() {
   const [activeSlide, setActiveSlide] = useState(0);
   const router = useRouter();
 
+  // Animação do título e descrição com delay
+  const titleOpacity = useSharedValue(0);
+  const titleTranslateY = useSharedValue(20);
+  const descOpacity = useSharedValue(0);
+  const descTranslateY = useSharedValue(20);
+
   useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
+    if (!permission?.granted) requestPermission();
   }, []);
+
+  useEffect(() => {
+    // Reset
+    titleOpacity.value = 0;
+    titleTranslateY.value = 20;
+    descOpacity.value = 0;
+    descTranslateY.value = 20;
+
+    // Título anima primeiro
+    titleOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) });
+    titleTranslateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.exp) });
+
+    // Descrição anima com pequeno delay
+    descOpacity.value = withDelay(
+      150,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.exp) })
+    );
+    descTranslateY.value = withDelay(
+      150,
+      withTiming(0, { duration: 500, easing: Easing.out(Easing.exp) })
+    );
+  }, [activeSlide]);
+
+  const animatedTitleStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.value,
+    transform: [{ translateY: titleTranslateY.value }],
+  }));
+
+  const animatedDescStyle = useAnimatedStyle(() => ({
+    opacity: descOpacity.value,
+    transform: [{ translateY: descTranslateY.value }],
+  }));
 
   const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
     if (scanned) return;
@@ -62,7 +101,7 @@ export default function Login() {
       const response = await api.post(`/loginCpf`, { qrCpf });
       const { id, name, saldo } = response.data;
 
-      router.push({
+      router.replace({
         pathname: '/dashboard',
         params: { idUsr: id, name, saldo },
       });
@@ -75,11 +114,22 @@ export default function Login() {
   };
 
   const renderSlide = (item: any, index: number) => (
-    <View style={styles.slide} key={index}>
+    <LinearGradient
+      colors={['#fff', '#f3f3f3']}
+      style={styles.slide}
+      key={index}
+    >
       <Image source={item.image} style={styles.slideImage} />
-      <Text style={styles.slideTitle}>{item.title}</Text>
-      <Text style={styles.slideDescription}>{item.description}</Text>
-    </View>
+
+      <BlurView intensity={80} tint="dark" style={styles.textContainer}>
+        <Animated.Text style={[styles.slideText, animatedTitleStyle]}>
+          {item.title}
+        </Animated.Text>
+        <Animated.Text style={[styles.slideText, animatedDescStyle]}>
+          {item.description}
+        </Animated.Text>
+      </BlurView>
+    </LinearGradient>
   );
 
   if (!permission) return <Text>Solicitando permissão da câmera...</Text>;
@@ -151,34 +201,51 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
+    color: '#222',
   },
   slide: {
     width: slideWidth,
     height: slideHeight,
-    backgroundColor: '#f9f9f9',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   slideImage: {
     width: '100%',
     height: imageHeight,
     resizeMode: 'contain',
-    marginBottom: 10,
+    marginBottom: 20,
     borderRadius: 12,
   },
-  slideTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 6,
-    textAlign: 'center',
+  textContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  slideDescription: {
-    fontSize: 14,
+  slideText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
     textAlign: 'center',
-    color: '#555',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    marginBottom: 6,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -202,7 +269,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#333',
+    backgroundColor: '#cbd5e1',
   },
   inactiveDot: {
     backgroundColor: '#ccc',
