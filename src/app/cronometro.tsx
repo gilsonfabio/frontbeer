@@ -17,27 +17,22 @@ export default function Cronometro() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [segundos, setSegundos] = useState(0);
-  const [minutos, setMinutos] = useState(0);
-  const [customInterval, setCustomInterval] = useState<NodeJS.Timer>();
-  const [atualiza, setAtualiza] = useState(0);
-
-  const [baseUrl, setBaseUrl] = useState("");
-  const [count, setCount] = useState(0);
-
-  let titulo = "Consumo";
+  const [tempoRestante, setTempoRestante] = useState<number>(
+    Number(local.tempo) || 0
+  );
 
   useEffect(() => {
-    let limiteTmp = Number(local.tempo);
-    setAtualiza(1);
-    if (count <= limiteTmp) {
-      setInterval(() => {
-        setCount(count + 1);
-      }, 1000);
-    } else {
+    if (tempoRestante <= 0) {
       handleStop();
+      return;
     }
-  }, [count]);
+
+    const interval = setInterval(() => {
+      setTempoRestante((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [tempoRestante]);
 
   const handleStop = () => {
     let nroTor = local.torneira;
@@ -51,7 +46,7 @@ export default function Cronometro() {
         }
 
         const text = await response.text();
-        console.log("Resposta da API:", text); // Debug
+        console.log("Resposta da API:", text);
         setData(text || "Resposta vazia");
       } catch (error: any) {
         console.error("Erro ao buscar dados:", error);
@@ -84,13 +79,19 @@ export default function Cronometro() {
         });
       });
 
-    router.replace('/login')
+    router.replace("/login");
+  };
+
+  // formata em mm:ss
+  const formatTime = (segundos: number) => {
+    const min = Math.floor(segundos / 60);
+    const sec = segundos % 60;
+    return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.txtContador}>{baseUrl}</Text>
-      <Text style={styles.txtContador}>{count}</Text>
+      <Text style={styles.txtContador}>{formatTime(tempoRestante)}</Text>
       <View style={styles.box}></View>
     </View>
   );
@@ -112,52 +113,5 @@ const styles = StyleSheet.create({
 
   box: {
     flexDirection: "row",
-  },
-
-  boxPlay: {
-    width: "30%",
-    height: 40,
-    backgroundColor: "#22c55e",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 5,
-  },
-
-  txtPlay: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#FFF",
-  },
-
-  boxPause: {
-    width: "30%",
-    height: 40,
-    backgroundColor: "#eab308",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 5,
-  },
-
-  txtPause: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#FFF",
-  },
-
-  boxReset: {
-    width: "30%",
-    height: 40,
-    backgroundColor: "#dc2626",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  txtReset: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#FFF",
   },
 });
