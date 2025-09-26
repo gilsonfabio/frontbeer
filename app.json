@@ -45,7 +45,8 @@
       "router": {},
       "eas": {
         "projectId": "c628d1df-5b86-4f91-abcd-3442fad5331c"
-      }
+      },
+      "apiBaseUrl": "http://192.168.0.100"      
     }
   }
 }

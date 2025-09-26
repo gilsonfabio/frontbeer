@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 import Header from '@/components/header';
 import { api } from '@/server/api';
-import { isAxiosError } from 'axios';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 type produtoProps = {
@@ -64,9 +64,8 @@ export default function Prodetalhe() {
       const resp = await api.get(`searchSaldo/${idUsr}`);
       setUserData(resp.data[0]);
     } catch (error) {
-      console.error('Erro ao buscar saldo do usuário:', error);
       setErrorUser('Falha no acesso do saldo do usuário! Tente novamente.');
-      Alert.alert('Erro', 'Falha no acesso do saldo do usuário! Tente novamente.');
+      showToastAndGoLogin('error', 'Falha ao acessar saldo do usuário!');
     } finally {
       setLoadingUser(false);
     }
@@ -79,9 +78,8 @@ export default function Prodetalhe() {
       const response = await api.get(`searchPro/${idPro}`);
       setProduto(response.data);
     } catch (error) {
-      console.error('Erro ao buscar detalhes do produto:', error);
       setErrorProduct('Falha no acesso ao produto! Tente novamente.');
-      Alert.alert('Erro', 'Falha no acesso ao produto! Tente novamente.');
+      showToastAndGoLogin('error', 'Falha ao acessar o produto!');
     } finally {
       setLoadingProduct(false);
     }
@@ -97,41 +95,42 @@ export default function Prodetalhe() {
     setTapRequestError(null);
     try {
       const response = await fetch(`${BASE_TAP_URL}${tapNumber}`);
-      if (!response.ok) {
-        throw new Error(`Erro na requisição da torneira: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Erro na requisição da torneira: ${response.status}`);
       const text = await response.text();
       console.log('Resposta da API da torneira:', text);
     } catch (error: any) {
-      console.error('Erro ao buscar dados da torneira:', error);
       setTapRequestError(error.message);
-      Alert.alert('Erro na torneira', 'Não foi possível ativar a torneira. Tente novamente.');
+      showToastAndGoLogin('error', 'Não foi possível ativar a torneira!');
     } finally {
       setIsTapRequestLoading(false);
     }
+  };
+
+  const showToastAndGoLogin = (type: 'success' | 'error', message: string) => {
+    Toast.show({
+      type,
+      text1: message,
+      position: 'top',
+      visibilityTime: 2000,
+      onHide: () => {
+        router.push('/login');
+      },
+    });
   };
 
   const handleProductSelection = async (qtde: number, valor: number, tempo: number) => {
     if (!produto || !userData) return;
 
     await sendTapRequest(produto.proTorneira);
-    // Rebusca o saldo após a tentativa de ativar a torneira, caso haja um delay na atualização
     fetchUserSaldo();
 
     if (userData.usrSldDisponivel >= valor) {
-      try {
-        router.push(
-          `/cronometro?idUsr=${idUsr}&name=${nomUsuario}&idPro=${idPro}&qtde=${qtde}&valor=${valor}&tempo=${tempo}&torneira=${produto.proTorneira}&saldo=${userData.usrSldDisponivel}` as any
-        );
-      } catch (error) {
-        if (isAxiosError(error)) {
-          Alert.alert('Erro', error.response?.data);
-        } else {
-          Alert.alert('Erro', 'Não foi possível entrar no cronômetro.');
-        }
-      }
+      router.push(
+        `/cronometro?idUsr=${idUsr}&name=${nomUsuario}&idPro=${idPro}&qtde=${qtde}&valor=${valor}&tempo=${tempo}&torneira=${produto.proTorneira}&saldo=${userData.usrSldDisponivel}` as any
+      );
+      showToastAndGoLogin('success', 'Consumo realizado com sucesso!');
     } else {
-      Alert.alert('Saldo Insuficiente!', 'Favor recarregar seu saldo.');
+      showToastAndGoLogin('error', 'Saldo insuficiente! Favor recarregar.');
     }
   };
 
@@ -152,9 +151,6 @@ export default function Prodetalhe() {
         <Text style={styles.errorText}>Erro ao carregar dados:</Text>
         {errorProduct && <Text style={styles.errorText}>{errorProduct}</Text>}
         {errorUser && <Text style={styles.errorText}>{errorUser}</Text>}
-        <TouchableOpacity onPress={() => { fetchUserSaldo(); fetchProductDetails(); }}>
-          <Text style={styles.retryButton}>Tentar Novamente</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -171,9 +167,7 @@ export default function Prodetalhe() {
     <View style={styles.container}>
       <Header user={idUsr.toString()} nomUser={nomUsuario.toString()} sysTitle={titulo} />
       <View style={styles.box}>
-        <View>
-          <Image source={{ uri: `https://thumbs2.imgbox.com/${produto.proAvatar}` }} resizeMode="contain" width={100} height={100} style={styles.imgLogo} />
-        </View>
+        <Image source={{ uri: `https://thumbs2.imgbox.com/${produto.proAvatar}` }} resizeMode="contain" style={styles.imgLogo} />
         <View style={styles.boxDescricao}>
           <Text style={styles.txtDescricao}>{produto.proDescricao}</Text>
         </View>
@@ -190,658 +184,51 @@ export default function Prodetalhe() {
         <Text style={styles.txtTamanho}>Escolha abaixo o tamanho da sua sede!</Text>
       </View>
       <View style={styles.boxTamanho}>
-        <View style={styles.button}>
-          <Pressable onPress={() => handleProductSelection(produto.proQtdPeq, produto.proPreVdaPeq, produto.proTmpPeq)}>
-            <View style={styles.boxImg}>
-              <Ionicons name="beer" size={30} color="black" />
-            </View>
-            <View>
-              <Text style={styles.txtPeq}>{produto.proQtdPeq} ml</Text>
-            </View>
-            <View>
-              <Text style={styles.prcPeq}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaPeq)}</Text>
-            </View>
-          </Pressable>
-        </View>
-        <View style={styles.button}>
-          <TouchableOpacity onPress={() => handleProductSelection(produto.proQtdMed, produto.proPreVdaMed, produto.proTmpMed)}>
-            <View style={styles.boxImg}>
-              <Ionicons name="beer" size={40} color="black" style={styles.imgPeq} />
-            </View>
-            <View>
-              <Text style={styles.txtMed}>{produto.proQtdMed} ml</Text>
-            </View>
-            <View>
-              <Text style={styles.prcMed}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaMed)}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.button}>
-          <TouchableOpacity onPress={() => handleProductSelection(produto.proQtdGrd, produto.proPreVdaGrd, produto.proTmpGrd)}>
-            <View style={styles.boxImg}>
-              <Ionicons name="beer" size={60} color="black" />
-            </View>
-            <View>
-              <Text style={styles.txtGrd}>{produto.proQtdGrd} ml</Text>
-            </View>
-            <View>
-              <Text style={styles.prcGrd}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaGrd)}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <Pressable style={styles.button} onPress={() => handleProductSelection(produto.proQtdPeq, produto.proPreVdaPeq, produto.proTmpPeq)}>
+          <Ionicons name="beer" size={30} color="black" />
+          <Text style={styles.txtPeq}>{produto.proQtdPeq} ml</Text>
+          <Text style={styles.prcPeq}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaPeq)}</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => handleProductSelection(produto.proQtdMed, produto.proPreVdaMed, produto.proTmpMed)}>
+          <Ionicons name="beer" size={40} color="black" />
+          <Text style={styles.txtMed}>{produto.proQtdMed} ml</Text>
+          <Text style={styles.prcMed}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaMed)}</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => handleProductSelection(produto.proQtdGrd, produto.proPreVdaGrd, produto.proTmpGrd)}>
+          <Ionicons name="beer" size={60} color="black" />
+          <Text style={styles.txtGrd}>{produto.proQtdGrd} ml</Text>
+          <Text style={styles.prcGrd}>{Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.proPreVdaGrd)}</Text>
+        </Pressable>
       </View>
       {isTapRequestLoading && <ActivityIndicator style={{ marginTop: 20 }} size="small" color="#0000ff" />}
       {tapRequestError && <Text style={styles.errorText}>Erro ao ativar torneira: {tapRequestError}</Text>}
+      <Toast />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: 'red',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  retryButton: {
-    marginTop: 10,
-    fontSize: 16,
-    color: 'blue',
-    textDecorationLine: 'underline',
-  },
-  box: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boxDescricao: {
-    width: '90%',
-    height: 'auto',
-    marginTop: 30,
-  },
-  txtDescricao: {
-    fontSize: 18,
-    fontWeight: '500',
-    textAlign: 'center', 
-  },
-  boxReferencia: {
-    width: '90%',
-    height: 'auto',
-    marginBottom: 30,
-  },
-  txtReferencia: {
-    fontSize: 18,
-    fontWeight: '500',
-    textAlign: 'center', 
-  },
-  imgLogo: {
-    width: 300,
-    height: 300,
-  },
-  boxTamanho: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  button: {
-    flexDirection: 'column',
-    width: 120,
-    height: 120,
-    backgroundColor: '#CCC',
-    borderRadius: 12,
-    padding: 10,
-    marginLeft: 5,
-    alignItems: 'center', 
-  },
-  boxImg: {
-    width: '100%',
-    height: 60,
-    alignContent: 'center',
-    alignItems: 'center',
-    justifyContent: 'center', 
-  },
-  imgPeq: {
-    alignContent: 'center',
-  },
-  txtPeq: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  prcPeq: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#dc2626',
-  },
-  txtMed: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  prcMed: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#dc2626',
-  },
-  txtGrd: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  prcGrd: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#dc2626',
-  },
-  boxTorneira: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20, 
-  },
-  txtTorneira: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#b91c1c',
-  },
-  nroTorneira: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#166534',
-    marginLeft: 5, 
-  },
-  lnhTorneira: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  txtTamanho: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#1d4ed8',
-  },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontSize: 16, color: 'red', textAlign: 'center', marginBottom: 10 },
+  box: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  boxDescricao: { width: '90%', marginTop: 30 },
+  txtDescricao: { fontSize: 18, fontWeight: '500', textAlign: 'center' },
+  boxReferencia: { width: '90%', marginBottom: 30 },
+  txtReferencia: { fontSize: 18, fontWeight: '500', textAlign: 'center' },
+  imgLogo: { width: 300, height: 300 },
+  boxTamanho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  button: { flexDirection: 'column', width: 120, height: 120, backgroundColor: '#CCC', borderRadius: 12, padding: 10, marginLeft: 5, alignItems: 'center' },
+  txtPeq: { fontSize: 12, fontWeight: '500' },
+  prcPeq: { fontSize: 18, fontWeight: '800', color: '#dc2626' },
+  txtMed: { fontSize: 12, fontWeight: '500' },
+  prcMed: { fontSize: 18, fontWeight: '800', color: '#dc2626' },
+  txtGrd: { fontSize: 12, fontWeight: '500' },
+  prcGrd: { fontSize: 18, fontWeight: '800', color: '#dc2626' },
+  boxTorneira: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  txtTorneira: { fontSize: 24, fontWeight: '500', color: '#b91c1c' },
+  nroTorneira: { fontSize: 32, fontWeight: '800', color: '#166534', marginLeft: 5 },
+  lnhTorneira: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  txtTamanho: { fontSize: 20, fontWeight: '500', color: '#1d4ed8' },
 });
-
-
-
-
-
-/*
-import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-import Header from '@/components/header';
-import { api } from '@/server/api';
-import { isAxiosError } from "axios";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-
-type produtoProps = {
-    idProd: string; 
-    proDescricao: string; 
-    proReferencia: string; 
-    proSegmento: number;
-    proMarca: number; 
-    proGrupo: number; 
-    proLinha: number; 
-    proCodBarra: string; 
-    proTorneira: number;
-    proUnidade: string; 
-    proCodNcm: string; 
-    proUltCusto: number;
-    proQtdPeq: number; 
-    proPreVdaPeq: number; 
-    proTmpPeq: number;
-    proQtdMed: number; 
-    proPreVdaMed: number;
-    proTmpMed: number,
-    proQtdGrd: number;  
-    proPreVdaGrd: number;
-    proTmpGrd: number; 
-    proTributacao: string; 
-    proCodCst: string; 
-    proStatus: string; 
-    proAvatar: string;
-}
-
-type paramsProps = {
-    idUsr: string;
-    name: string;
-    title: string;
-    saldo: string;
-}
-
-export default function Prodetalhe(){
-    const [produtos, setProdutos] = useState<Array<produtoProps>>([]);
-    const local = useLocalSearchParams();
-
-    const [data, setData] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-
-    const [proAvatar, setProAvatar] = useState('');
-    const [proDescricao, setProDescricao] = useState('');
-    const [proReferencia, setProReferencia] = useState('');
-    const [proVdaPeq, setProVdaPeq] = useState(0);
-    const [proQtdPeq, setProQtdPeq] = useState(0);
-    const [proTmpPeq, setProTmpPeq] = useState(0);
-    const [proVdaMed, setProVdaMed] = useState(0);
-    const [proQtdMed, setProQtdMed] = useState(0);
-    const [proTmpMed, setProTmpMed] = useState(0);
-    const [proVdaGrd, setProVdaGrd] = useState(0);
-    const [proQtdGrd, setProQtdGrd] = useState(0);
-    const [proTmpGrd, setProTmpGrd] = useState(0);
-    const [proTorneira, setProTorneira] = useState(0);
-
-    const [atualiza, setAtualiza] = useState(0);
-    const [qtde, setQtde] = useState(0);
-    const [vlrTotal, setVlrTotal] = useState(0);
-
-    const [user, setUser] = useState(0);
-    const [usrSaldo, setUsrSaldo] = useState(0);
-    const [usrNome, setUsrNome] = useState(0);
-
-    const navigation = useNavigation();
-    const router = useRouter();
-
-    const [carshop, setCarShop] = useState([]);
-    const [count, setCount] = useState(0);
-
-    let usuario = local.idUsr;
-    let nomUsuario = local.name;
-    let titulo = 'Detalhes';
-        
-    useEffect(() => {
-        let id = local.idUsr;
-        api({
-            method: 'get',    
-            url: `searchSaldo/${id}`,                 
-        }).then(function(resp) {
-            setUser(resp.data[0].usrId)
-            setUsrNome(resp.data[0].usrNome)  
-            setUsrSaldo(resp.data[0].usrSldDisponivel)        
-        }).catch(function(error) {
-            alert(`Falha no acesso do saldo do usuário! Tente novamente.`);
-        }) 
-
-        let idPro = local.id;
-        api({
-            method: 'get',    
-            url: `searchPro/${idPro}`,                 
-        }).then(function(response) {
-            setProdutos(response.data)  
-            setProAvatar(response.data.proAvatar)
-            setProDescricao(response.data.proDescricao)
-            setProReferencia(response.data.proReferencia)
-            setProVdaPeq(response.data.proPreVdaPeq)
-            setProQtdPeq(response.data.proQtdPeq)
-            setProTmpPeq(response.data.proTmpPeq)
-            setProVdaMed(response.data.proPreVdaMed)
-            setProQtdMed(response.data.proQtdMed)
-            setProTmpMed(response.data.proTmpMed)            
-            setProVdaGrd(response.data.proPreVdaGrd)
-            setProQtdGrd(response.data.proQtdGrd)
-            setProTmpGrd(response.data.proTmpGrd)             
-            setProTorneira(response.data.proTorneira)
-        }).catch(function(error) {
-            alert(`Falha no acesso ao produto! Tente novamente.`);
-        })       
-       
-    }, []);
-
-    useEffect(() => {
-        let id = local.idUsr;
-        api({
-            method: 'get',    
-            url: `searchSaldo/${id}`,                 
-        }).then(function(resp) {
-            setUser(resp.data[0].usrId)
-            setUsrNome(resp.data[0].usrNome)  
-            setUsrSaldo(resp.data[0].usrSldDisponivel)        
-        }).catch(function(error) {
-            alert(`Falha no acesso do saldo do usuário! Tente novamente.`);
-        }) 
-                                 
-    }, [atualiza]);
-
-    const postData = () => {
-        //console.log('2');
-        
-        //fetch('http://192.168.0.100/?s=GMCL1')
-        //    .then(response => response.text()) // ou .json() se for JSON
-        //    .then(data => console.log('Resposta:', data))
-        //.catch(error => console.error('Erro na requisição:', error));
-
-        //console.log('3');
-    };
-
-    async function onPressPeq() {
-        //console.log('1')
-        
-        const fetchData = async () => {
-            try {
-              const response = await fetch(`http://192.168.0.100/?s=GMCL${proTorneira}`);
-          
-              if (!response.ok) {
-                throw new Error(`Erro na requisição: ${response.status}`);
-              }
-          
-              const text = await response.text();
-              console.log("Resposta da API:", text); // Debug
-              setData(text || "Resposta vazia");
-            } catch (error: any) {
-              console.error("Erro ao buscar dados:", error);
-              setError(error.message);
-            } finally {
-              setLoading(false);
-            }
-          };
-      
-        fetchData();
-
-        //postData();
-        //console.log('4')
-        setAtualiza(atualiza + 1 );
-        if (usrSaldo >= proVdaPeq) {
-            try {
-              router.push(`/cronometro?idUsr=${local.idUsr}&name=${nomUsuario}&idPro=${local.id}&qtde=${proQtdPeq}&valor=${proVdaPeq}&tempo=${proTmpPeq}&torneira=${proTorneira}&saldo=${usrSaldo}` as any );         
-            } catch (error) {
-                if (isAxiosError(error)) {
-                    return Alert.alert(error.response?.data)
-                }
-                Alert.alert("Não foi possÃ­vel entrar.")
-            }
-        }else {
-            Alert.alert("Saldo Insuficiente! Favor recarregar seu saldo.")
-        }
-    }
-
-    async function onPressMed() {
-        const fetchData = async () => {
-            try {
-              const response = await fetch(`http://192.168.0.100/?s=GMCL${proTorneira}`);
-          
-              if (!response.ok) {
-                throw new Error(`Erro na requisição: ${response.status}`);
-              }
-          
-              const text = await response.text();
-              console.log("Resposta da API:", text); // Debug
-              setData(text || "Resposta vazia");
-            } catch (error: any) {
-              console.error("Erro ao buscar dados:", error);
-              setError(error.message);
-            } finally {
-              setLoading(false);
-            }
-        };
-      
-        fetchData();
-        setAtualiza(atualiza + 1 );
-        if (usrSaldo >= proVdaMed) {
-            try {
-              router.push(`/cronometro?idUsr=${local.idUsr}&idPro=${local.id}&qtde=${proQtdMed}&valor=${proVdaMed}&tempo=${proTmpMed}&torneira=${proTorneira}&saldo=${usrSaldo}` as any );         
-            } catch (error) {
-                if (isAxiosError(error)) {
-                    return Alert.alert(error.response?.data)
-                }
-                Alert.alert("Não foi possÃ­vel entrar.")
-            }
-        }else {
-            Alert.alert("Saldo Insuficiente! Favor recarregar seu saldo.")
-        }
-    }
-
-    async function onPressGrd() {
-        const fetchData = async () => {
-            try {
-              const response = await fetch(`http://192.168.0.100/?s=GMCL${proTorneira}`);
-          
-              if (!response.ok) {
-                throw new Error(`Erro na requisição: ${response.status}`);
-              }
-          
-              const text = await response.text();
-              console.log("Resposta da API:", text); // Debug
-              setData(text || "Resposta vazia");
-            } catch (error: any) {
-              console.error("Erro ao buscar dados:", error);
-              setError(error.message);
-            } finally {
-              setLoading(false);
-            }
-        };
-      
-        fetchData();
-        setAtualiza(atualiza + 1 );
-        if (usrSaldo >= proVdaPeq) {
-            try {
-              router.push(`/cronometro?idUsr=${local.idUsr}&idPro=${local.id}&qtde=${proQtdGrd}&valor=${proVdaGrd}&tempo=${proTmpGrd}&torneira=${proTorneira}&saldo=${usrSaldo}` as any );         
-            } catch (error) {
-                if (isAxiosError(error)) {
-                    return Alert.alert(error.response?.data)
-                }
-                Alert.alert("Não foi possível entrar.")
-            }
-        }else {
-            Alert.alert("Saldo Insuficiente! Favor recarregar seu saldo.")
-        }
-    }
-
-    return(
-        <View style={styles.container}>            
-            <Header user={usuario.toString()} nomUser={nomUsuario.toString()} sysTitle={titulo} />
-            <View style={styles.box}>
-                <View>
-                     <Image source={{uri: `https://thumbs2.imgbox.com/d9/79/uhgnjIks_t.jpg`}} resizeMode="contain" width={100} height={100} style={styles.imgLogo}/>
-                </View>                
-                <View style={styles.boxDescricao}>
-                    <Text style={styles.txtDescricao}>{proDescricao}</Text>
-                </View>
-                <View style={styles.boxReferencia}>
-                    <Text style={styles.txtReferencia}>{proReferencia}</Text>
-                </View>                
-            </View> 
-            <View style={styles.boxTorneira}>
-                <Text style={styles.txtTorneira}>Atenção!</Text>
-                <View style={styles.lnhTorneira}>
-                    <Text style={styles.txtTorneira}>Posicione o copo na torneira:</Text>
-                    <Text style={styles.nroTorneira}>{proTorneira}</Text>
-                </View>
-                <Text style={styles.txtTamanho}>Escolha abaixo o tamanho da sua sede!</Text>
-            </View>    
-            <View style={styles.boxTamanho}>
-                <View style={styles.button}>
-                    <Pressable onPress={onPressPeq}> 
-                        <View style={styles.boxImg}>                      
-                            <Ionicons name="beer" size={30} color="black" />
-                        </View>
-                        <View>                      
-                            <Text style={styles.txtPeq} >{proQtdPeq} ml</Text>
-                        </View>
-                        <View>                      
-                            <Text style={styles.prcPeq}>{Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(proVdaPeq)}</Text>
-                        </View>
-                    </Pressable>
-                </View>
-                <View style={styles.button}>
-                    <TouchableOpacity onPress={onPressMed}> 
-                        <View style={styles.boxImg}>                      
-                            <Ionicons name="beer" size={40} color="black" style={styles.imgPeq}/>
-                        </View>
-                        <View>                      
-                            <Text style={styles.txtMed}>{proQtdMed} ml</Text>
-                        </View>
-                        <View >                      
-                            <Text style={styles.prcMed}>{Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(proVdaMed)}</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.button}>
-                    <TouchableOpacity onPress={onPressGrd}> 
-                        <View style={styles.boxImg}>                      
-                            <Ionicons name="beer" size={60} color="black" />
-                        </View>
-                        <View >                      
-                            <Text style={styles.txtGrd}>{proQtdGrd} ml</Text>
-                        </View>
-                        <View >                      
-                            <Text style={styles.prcGrd}>{Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(proVdaGrd)}</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-            </View>        
-        </View>
-    )
-}
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFF"
-    },
-
-    box: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-
-    boxDescricao: {
-        width: "90%",
-        height: 'auto',
-        marginTop: 30,
-    },
-
-    txtDescricao: {
-        fontSize: 18,
-        fontWeight: '500',
-    },
-
-    boxReferencia: {
-        width: "90%",
-        height: 'auto',
-        marginBottom: 30,
-    },
-
-    txtReferencia: {
-        fontSize: 18,
-        fontWeight: '500',
-    },
-
-    imgLogo: {
-        width: 300,
-        height: 300,
-    },
-
-    boxTamanho: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 10,
-    },
-
-    button: {
-        flexDirection: 'column',
-        width: 120,
-        height: 120,
-        backgroundColor: "#CCC",
-        borderRadius: 12,
-        padding: 10,
-        marginLeft: 5,
-    },
-
-    boxImg: {
-        width: "100%",
-        height: 60,
-        alignContent: 'center',
-        alignItems: 'center',
-    },
-
-    imgPeq: {
-        alignContent: 'center',
-    },
-
-    txtPeq: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-
-    prcPeq: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: "#dc2626"
-    },
-
-    txtMed: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-
-    prcMed: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: "#dc2626"
-    },
-   
-    txtGrd: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-
-    prcGrd: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: "#dc2626"
-    },
-
-    boxTorneira: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-
-    txtTorneira: {
-        fontSize: 24,
-        fontWeight: '500',
-        color: "#b91c1c"
-    },
-
-    nroTorneira: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: "#166534",
-        marginLeft: 2,
-    },
-    
-    lnhTorneira: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 6,
-    },
-
-    txtTamanho: {
-        fontSize: 20,
-        fontWeight: '500',
-        color: "#1d4ed8"
-    },
-
-})
-
-*/
